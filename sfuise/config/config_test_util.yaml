@@ -1,4 +1,4 @@
-anchor_path: /path/to/UTIL/dataset/util-uwb-dataset-main/dataset/flight-dataset/survey-results/anchor_const1_survey.txt
+anchor_path: /home/darren/util-uwb-dataset/dataset/flight-dataset/survey-results/anchor_const1_survey.txt
 
 topic_imu: /imu_data 
 topic_uwb: /tdoa_data 
@@ -6,7 +6,7 @@ topic_anchor_list: none
 topic_ground_truth: /pose_data
 
 if_tdoa: true
-uwb_frequency: 447
+uwb_frequency: 400
 imu_frequency: 1000
 acc_ratio: true # if true, multiply accelerometer measurements with g
 gyro_unit: true # if true, convert unit of gyroscope measurements from deg/s to rad/s

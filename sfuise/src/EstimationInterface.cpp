@@ -16,6 +16,14 @@
 #include "sfuise_msgs/Estimate.h"
 #include "sfuise_msgs/Calib.h"
 #include "std_msgs/Int64.h"
+#include <iostream>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <ros/time.h>
+
+int64_t total_duration_ns = 0; // to be set with the total duration of the bag file in nanoseconds
+int64_t start_time_ns = 0;
+
 
 class EstimationInterface
 {
@@ -105,6 +113,9 @@ private:
     ros::Publisher pub_opt_pose;
     nav_msgs::Path opt_old_path;
     PoseVisualization opt_pose_vis;
+
+    ros::Duration threshold1;  // Declare threshold1
+    ros::Duration c;           // Declare c
 
     void readParamsInterface(ros::NodeHandle& nh)
     {
@@ -233,14 +244,60 @@ private:
     void getTdoaUTILCallback(const cf_msgs::Tdoa::ConstPtr& msg)
     {
         static int64_t last_uwb = 0;
+        
+        // Get the current timestamp in nanoseconds
         int64_t t_ns = msg->header.stamp.toNSec();
+        
+        // Set the start time if it hasn't been set yet
+        if (start_time_ns == 0) {
+            start_time_ns = t_ns;
+        }
+
+        // Calculate elapsed time from the start
+        int64_t elapsed_time_ns = t_ns - start_time_ns;
+        int64_t time_frame_length = total_duration_ns / 3;
+
         if (sampleData(t_ns, last_uwb, uwb_sample_coeff, uwb_frequency)) {
             int idA = msg->idA;
             int idB = msg->idB;
-            pub_uwb.publish(*msg);
+
+            if (elapsed_time_ns < time_frame_length) {
+                printf("using all id data");
+                // First third: publish all messages
+                pub_uwb.publish(*msg);
+            } else if (elapsed_time_ns < 2 * time_frame_length) {
+                printf("using id 1 and 2");
+                // Second third: publish only when idA = 1 and idB = 2
+                if (idA == 1 && idB == 2) {            
+                    pub_uwb.publish(*msg);
+            last_uwb = t_ns;
+                }
+            } else {
+                printf("using id 3 and 4");
+                // Last third: publish only when idA = 3 and idB = 4
+                if (idA == 3 && idB == 4) {
+                    pub_uwb.publish(*msg);
+                
+                }
+            }
+
             last_uwb = t_ns;
         }
     }
+//     void getTdoaUTILCallback(const cf_msgs::Tdoa::ConstPtr& msg)
+//     {
+//         static int64_t last_uwb = 0;
+//         int64_t t_ns = msg->header.stamp.toNSec();
+//        if (sampleData(t_ns, last_uwb, uwb_sample_coeff, uwb_frequency)) {            
+//            int idA = msg->idA;
+//             int idB = msg->idB;
+//             if (idA == 1 && idB == 2) {
+//             pub_uwb.publish(*msg);
+           
+//          }
+//          last_uwb = t_ns;
+//        }
+//    }
 
     void getGtFromISASCallback(const geometry_msgs::TransformStampedConstPtr& gt_msg)
     {
@@ -369,6 +426,9 @@ private:
 
 int main(int argc, char *argv[])
 {
+     total_duration_ns = 122.242441 * 1e9; // Example: 90 seconds
+
+    //std::string bag_file = "/home/darren/util-uwb-dataset/dataset/flight-dataset/rosbag-data/const1/const1-trial4-tdoa2.bag";
     ros::init(argc, argv, "sfuise");
     ROS_INFO("\033[1;32m---->\033[0m Starting EstimationInterface.");
     ros::NodeHandle nh("~");
